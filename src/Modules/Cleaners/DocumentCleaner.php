@@ -225,6 +225,7 @@ class DocumentCleaner extends AbstractModule implements ModuleInterface {
             if (!$tagNodes->count()) {
                 $this->replaceElementsWithPara($node);
             } else {
+                $node = $node->cloneNode(true);
                 $replacements = $this->getReplacementNodes($node);
 
                 $node->contents()->remove();
