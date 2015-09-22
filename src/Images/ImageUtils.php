@@ -89,39 +89,51 @@ class ImageUtils {
      *
      * @return object[]|null
      */
-    private static function handleEntity($imageSrcs, $returnAll, $config) {
-        $guzzle = new GuzzleClient();
+    private static function handleEntity($imageSrcs, $returnAll, $config)
+    {
+        $clientOptions = [
+            'allow_redirects' => [
+                'max' => 5,
+                'strict' => false,
+                'referer' => true,
+                'protocols' => ['http', 'https'],
+                'track_redirects' => true
+            ]
+        ];
+        $guzzle = new GuzzleClient($clientOptions);
 
-        $requests = [];
-
+        $results = [];
         foreach ($imageSrcs as $imageSrc) {
             $file = tempnam(sys_get_temp_dir(), 'goose');
 
             $options = $config->get('browser');
 
             $options['save_to'] = $file;
+            $response = $guzzle->get($imageSrc, $options);
 
-            $requests[] = $guzzle->createRequest('GET', $imageSrc, $options);
-        }
-
-        $batchResults = GuzzlePool::batch($guzzle, $requests);
-
-        $results = [];
-
-        foreach ($batchResults as $batchResult) {
-            /** @todo Handle failures gracefully */
-            if ($batchResult instanceof \GuzzleHttp\Exception\ClientException) {
+            if ($response instanceof \GuzzleHttp\Exception\ClientException) {
                 if ($returnAll) {
+                    $errResp = $response->getResponse();
+                    $effectiveUrl = $errResp->getHeaderLine('X-Guzzle-Redirect-History');
+                    if (empty($effectiveUrl)) {
+                        $effectiveUrl = $imageSrc;
+                    }
+
                     $results[] = (object)[
-                        'url' => $batchResult->getResponse()->getEffectiveUrl(),
+                        'url' => $effectiveUrl,
                         'file' => null,
                     ];
                 }
             } else {
-                if ($returnAll || $batchResult->getStatusCode() == 200) {
+                if ($returnAll || $response->getStatusCode() == 200) {
+                    $effectiveUrl = $response->getHeaderLine('X-Guzzle-Redirect-History');
+                    if (empty($effectiveUrl)) {
+                        $effectiveUrl = $imageSrc;
+                    }
+
                     $results[] = (object)[
-                        'url' => $batchResult->getEffectiveUrl(),
-                        'file' => $batchResult->getBody()->getContents(),
+                        'url' => $effectiveUrl,
+                        'file' => $file,
                     ];
                 }
             }
