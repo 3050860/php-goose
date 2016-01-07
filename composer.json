@@ -23,7 +23,7 @@
     "repositories": [
       {
         "type": "vcs",
-        "url": "https://github.com/zmike808GS/php-dom-wrapper"
+        "url": "https://github.com/3050860/php-dom-wrapper"
       }
     ],
     "require-dev": {
